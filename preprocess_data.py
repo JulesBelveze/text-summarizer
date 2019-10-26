@@ -26,10 +26,10 @@ def process_story(doc: str):
     story = doc[:index]
     highlights = doc[index:].split("@highlight")
     highlights = [h.strip() for h in highlights if len(h) > 0]
-    return story, highlights
+    return story, " . ".join(highlights)
 
 
-def load_stories(dir_name: str) -> List[Dict[str, Union[str, List[str]]]]:
+def load_stories(dir_name: str) -> List[Dict[str, Union[str, str]]]:
     data = []
     list_files = os.listdir(dir_name)
     bar = Bar("Processing data", max=len(list_files))
@@ -45,7 +45,7 @@ def load_stories(dir_name: str) -> List[Dict[str, Union[str, List[str]]]]:
     return data
 
 
-def save_pickle(filename: str, data: List[Dict[str, Union[str, List[str]]]]) -> None:
+def save_pickle(filename: str, data: List[Dict[str, Union[str, str]]]) -> None:
     with open(filename, 'wb') as f:
         dump(data, f)
     print("{} created!\n".format(filename))
