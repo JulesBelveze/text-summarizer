@@ -1,10 +1,14 @@
 import os
 import re
+import random
+from itertools import repeat
 from progress.bar import Bar
 from typing import List, Dict, Union
-from pickle import dump
+from pickle import dump, load
 
 strip_regex = "|".join(['LRB', 'RRB', 'LSB', 'RSB'])
+filename_data = "data.pkl"
+data_dir = "data/"
 
 
 def load_file(filename: str) -> str:
@@ -45,14 +49,36 @@ def load_stories(dir_name: str) -> List[Dict[str, Union[str, str]]]:
     return data
 
 
-def save_pickle(filename: str, data: List[Dict[str, Union[str, str]]]) -> None:
-    with open(filename, 'wb') as f:
+def save_pickle(data: List[Dict[str, Union[str, str]]], filename=filename_data) -> None:
+    filename = os.path.join(data_dir, filename)
+    with open(filename, 'ab') as f:
         dump(data, f)
-    print("{} created!\n".format(filename))
+
+
+def split_sets(train=.92, validation=.05, filename=filename_data) -> None:
+    '''split data into train, validation and test sets'''
+    data_file = os.path.join(data_dir, filename)
+    train_file, test_file, valid_file = ['train.pkl', 'test.pkl', 'validation.pkl']
+
+    with open(data_file, 'rb') as f:
+        data = load(f)
+        random.shuffle(data)
+
+        # computing sets indexes
+        indexes_train = int(len(data) * train)
+        indexes_validation = indexes_train + int(len(data) * validation)
+
+        # saving the different files
+        save_pickle(data[:indexes_train], filename=train_file)  # creating train set
+        save_pickle(data[indexes_train:indexes_validation], filename=valid_file)  # creating validation set
+        save_pickle(data[indexes_validation:], filename=test_file)  # creating test set
 
 
 if __name__ == "__main__":
     dirs = ["data/cnn_stories_tokenized", "data/dm_stories_tokenized"]
     for dir in dirs:
         data = load_stories(dir)
-        save_pickle(dir + ".pkl", data)
+        save_pickle(data)
+
+    # split data into train, validation and test sets
+    split_sets()
