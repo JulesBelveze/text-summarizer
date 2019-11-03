@@ -1,7 +1,6 @@
-PAD_TOKEN = '[PAD]'
-UNKNOWN_TOKEN = '[UNK]'
-START_TOKEN = '[START]'
-STOP_TOKEN = '[STOP]'
+import numpy as np
+from typing import List
+from vars import *
 
 
 class Vocab(object):
@@ -36,4 +35,22 @@ class Vocab(object):
             return UNKNOWN_TOKEN
         return self.id_to_word[id]
 
+    def sequence_2_id(self, sequence: List[str]) -> List[int]:
+        return [self.word_2_id(token) for token in sequence]
 
+    def one_hot_encode(self, token_id: int) -> List[int]:
+        one_hot = [0] * self.vocab_size
+        one_hot[int(token_id)] = 1
+        return one_hot
+
+    def one_hot_encode_sequence(self, sequence):
+        # Encode each word in the sentence
+        encoding = np.array([self.one_hot_encode(token_id) for token_id in sequence])
+
+        # Reshape encoding s.t. it has shape (num words, vocab size)
+        encoding = encoding.reshape(encoding.shape[0], encoding.shape[1])
+        return encoding
+
+    def one_hot_encode_tensor(self, tensor):
+        encoding = np.array([self.one_hot_encode_sequence(sequence) for sequence in tensor])
+        return torch.LongTensor(encoding)

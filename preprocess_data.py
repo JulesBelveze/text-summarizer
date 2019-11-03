@@ -1,7 +1,7 @@
 import os
 import re
 import random
-from itertools import repeat
+from vars import *
 from progress.bar import Bar
 from typing import List, Dict, Union
 from pickle import dump, load
@@ -19,7 +19,7 @@ def load_file(filename: str) -> str:
 
 def clean_story(story: str) -> str:
     story = re.sub(strip_regex, " ", story)
-    story = re.sub(r"[,;@#?!&$\-\'\"\`]+\ *", " ", story)
+    story = re.sub(r"[,;:@#?!&$\-\'\"`]+", " ", story)
     story = " ".join(story.split())
     story = story.lower()
     return story
@@ -30,7 +30,8 @@ def process_story(doc: str):
     story = doc[:index]
     highlights = doc[index:].split("@highlight")
     highlights = [h.strip() for h in highlights if len(h) > 0]
-    return story, " . ".join(highlights)
+    return story, highlights
+    # return story, " ".join(["{} {} {}".format(SENTENCE_START, sentence, SENTENCE_END) for sentence in highlights])
 
 
 def load_stories(dir_name: str) -> List[Dict[str, Union[str, str]]]:
@@ -55,10 +56,10 @@ def save_pickle(data: List[Dict[str, Union[str, str]]], filename=filename_data) 
         dump(data, f)
 
 
-def split_sets(train=.92, validation=.05, filename=filename_data) -> None:
+def split_sets(train=.92, filename=filename_data) -> None:
     '''split data into train, validation and test sets'''
     data_file = os.path.join(data_dir, filename)
-    train_file, test_file, valid_file = ['train.pkl', 'test.pkl', 'validation.pkl']
+    train_file, test_file = ['train.pkl', 'test.pkl']
 
     with open(data_file, 'rb') as f:
         data = load(f)
@@ -66,12 +67,10 @@ def split_sets(train=.92, validation=.05, filename=filename_data) -> None:
 
         # computing sets indexes
         indexes_train = int(len(data) * train)
-        indexes_validation = indexes_train + int(len(data) * validation)
 
         # saving the different files
         save_pickle(data[:indexes_train], filename=train_file)  # creating train set
-        save_pickle(data[indexes_train:indexes_validation], filename=valid_file)  # creating validation set
-        save_pickle(data[indexes_validation:], filename=test_file)  # creating test set
+        save_pickle(data[indexes_train:], filename=test_file)  # creating test set
 
 
 if __name__ == "__main__":
