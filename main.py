@@ -21,4 +21,4 @@ if __name__ == "__main__":
     optimizer = torch.optim.Adam(model.parameters(), lr=3e-4, weight_decay=5e-3)
     loss_function = torch.nn.NLLLoss()
 
-    train(train_loader, loss_function, model, optimizer)
+    train(train_loader, test_loader, loss_function, model, optimizer)
