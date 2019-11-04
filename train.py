@@ -53,8 +53,8 @@ def train(train_iter, test_iter, criterion, model, optimizer, num_epochs=NUM_EPO
     for epoch in range(num_epochs):
         start = time.time()
         epoch_loss_train, epoch_loss_eval = train_epoch(train_iter, test_iter, criterion, model, optimizer, vocab)
-        train_loss.append(epoch_loss_train)
-        eval_loss.append(epoch_loss_eval)
+        train_loss.append(epoch_loss_train.item())
+        eval_loss.append(epoch_loss_eval.item())
         elapsed_time = time.time() - start
         print("Epoch: {} | loss train: {} | loss eval: {} | time: {}".format(epoch, epoch_loss_train, epoch_loss_eval,
                                                                              elapsed_time))
