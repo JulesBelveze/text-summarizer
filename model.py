@@ -79,30 +79,23 @@ class AttnDecoder(nn.Module):
             in_features=hidden_dim,
             out_features=voc_size
         )
-        self.softmax = nn.LogSoftmax(dim=2)
+        self.softmax = nn.LogSoftmax(dim=1)
 
-    # BEWARE NEED to Change the training to get encoder outputs
     def forward(self, input, hidden, cell, outputs):
-        embedded = self.embeddings(input)
-        embedded = embedded.permute(1, 0, 2)
+        embedded = self.embeddings(input).squeeze(1)  # batch * hidden_dim
 
         # compute the attention at the moment
         attn_weights = F.softmax(
-            self.attn(torch.cat((embedded[0], hidden[0]), 1)), dim=1)
+            self.attn(torch.cat((embedded, hidden[0]), 1)), dim=1)
         attn_applied = torch.bmm(attn_weights.unsqueeze(1), outputs)
+        attn_applied = attn_applied.squeeze(1)
 
-        # combine them
-
-        attn_applied = attn_applied.permute(1, 0, 2)
-
-        output = torch.cat((embedded[0], attn_applied[0]), 1)
+        output = torch.cat((embedded, attn_applied), 1)
         output = self.attn_combine(output).unsqueeze(0)
 
         output, (hidden, cell) = self.lstm(output, (hidden, cell))
-        output = output.permute(1, 0, 2)
-        output = self.fc(output)
-        output = self.softmax(output)
-
+        output = self.fc(output.squeeze(0))
+        output = self.softmax(output).unsqueeze(1)  # unsqueeze for concatenation
         return output, (hidden, cell)
 
 
