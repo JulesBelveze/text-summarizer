@@ -18,7 +18,7 @@ class Articles(torch.utils.data.Dataset):
 
         is_test = {
             False: os.path.join(data_dir, "train_small.pkl"),
-            True: os.path.join(data_dir, "test.pkl")
+            True: os.path.join(data_dir, "test_small.pkl")
         }
         self.data_path = is_test.get(test, "Wrong set name.")
 
