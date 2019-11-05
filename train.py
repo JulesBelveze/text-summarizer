@@ -13,6 +13,7 @@ def train_epoch(train_iter, test_iter, criterion, model, optimizer, vocab):
     # training network
     model.train()
     for i, batch in enumerate(train_iter):
+        print(i)
         batch_loss_train = 0
         optimizer.zero_grad()
 
@@ -21,6 +22,7 @@ def train_epoch(train_iter, test_iter, criterion, model, optimizer, vocab):
         highlight = highlight.to(device)
 
         output = model(story, highlight)
+        print(output.shape)
         for sequence, target in zip(output, highlight):
             batch_loss_train += criterion(sequence, target)
         batch_loss_train.backward()

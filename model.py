@@ -53,26 +53,27 @@ class Decoder(nn.Module):
         output = self.softmax(output)
         return output, (hidden, cell)
 
+
 class AttnDecoder(nn.Module):
-    def __init__(self, max_length):
+    def __init__(self):
         super(AttnDecoder, self).__init__()
         self.embeddings = nn.Embedding(
             num_embeddings=voc_size,
-            embedding_dim=embedding_dim
+            embedding_dim=hidden_dim
         )
         self.lstm = nn.LSTM(
-            input_size=embedding_dim,
+            input_size=hidden_dim,
             hidden_size=hidden_dim,
             num_layers=1,
             bidirectional=False,
-            batch_first=True
+            batch_first=False
         )
-        # attention layer (we use the defition in the paper hence tanh)
-        self.attn =  nn.Sequential(
-            nn.Linear(self.hidden_dim * 2, self.max_length),
-            nn.Tanh(dim=2)
-            )
-        self.attn_combine = nn.Linear(self.hidden_dim * 2, self.hidden_dim)
+        # attention layer (we use the definition in the paper hence tanh)
+        self.attn = nn.Sequential(
+            nn.Linear(hidden_dim * 2, MAX_LEN_STORY),
+            nn.Tanh()
+        )
+        self.attn_combine = nn.Linear(hidden_dim * 2, hidden_dim)
 
         self.fc = nn.Linear(
             in_features=hidden_dim,
@@ -81,23 +82,27 @@ class AttnDecoder(nn.Module):
         self.softmax = nn.LogSoftmax(dim=2)
 
     # BEWARE NEED to Change the training to get encoder outputs
-    def forward(self, input, hidden, encoder_outputs):
+    def forward(self, input, hidden, cell, outputs):
         embedded = self.embeddings(input)
+        embedded = embedded.permute(1, 0, 2)
 
         # compute the attention at the moment
         attn_weights = F.softmax(
             self.attn(torch.cat((embedded[0], hidden[0]), 1)), dim=1)
-        attn_applied = torch.bmm(attn_weights.unsqueeze(0),
-                                 encoder_outputs.unsqueeze(0))
+        attn_applied = torch.bmm(attn_weights.unsqueeze(1), outputs)
 
         # combine them
+
+        attn_applied = attn_applied.permute(1, 0, 2)
+
         output = torch.cat((embedded[0], attn_applied[0]), 1)
         output = self.attn_combine(output).unsqueeze(0)
-        
-    
-        output, (hidden, cell) = self.lstm(output, hidden)
+
+        output, (hidden, cell) = self.lstm(output, (hidden, cell))
+        output = output.permute(1, 0, 2)
         output = self.fc(output)
         output = self.softmax(output)
+
         return output, (hidden, cell)
 
 
@@ -117,6 +122,30 @@ class Seq2seq(nn.Module):
         batch_output = torch.Tensor()
         for i in range(MAX_LEN_HIGHLIGHT):
             decoder_output, decoder_hidden = self.decoder(decoder_input, decoder_hidden)
+            batch_output = torch.cat((batch_output, decoder_output), 1)
+
+        return batch_output
+
+
+class Seq2seqAttention(nn.Module):
+    def __init__(self, encoder, decoder):
+        super(Seq2seqAttention, self).__init__()
+        self.encoder = encoder
+        self.decoder = decoder
+
+    def forward(self, input, target):
+        encoder_output, (encoder_hidden, encoder_cell) = self.encoder(input)
+
+        decoder_input = torch.tensor([2] * batch_size,
+                                     dtype=torch.long, device=device).view(batch_size, -1)
+
+        decoder_hidden = encoder_hidden
+        decoder_cell = encoder_cell
+
+        batch_output = torch.Tensor()
+        for i in range(MAX_LEN_HIGHLIGHT):
+            decoder_output, (decoder_hidden, decoder_cell) = self.decoder(decoder_input, decoder_hidden, decoder_cell,
+                                                                          encoder_output)
             batch_output = torch.cat((batch_output, decoder_output), 1)
 
         return batch_output
