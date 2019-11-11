@@ -17,8 +17,8 @@ class Articles(torch.utils.data.Dataset):
         self.nax_len_highlight = MAX_LEN_HIGHLIGHT
 
         is_test = {
-            False: os.path.join(data_dir, "train.pkl"),
-            True: os.path.join(data_dir, "test.pkl")
+            False: os.path.join(data_dir, "train_small.pkl"),
+            True: os.path.join(data_dir, "test_small.pkl")
         }
         self.data_path = is_test.get(test, "Wrong set name.")
 

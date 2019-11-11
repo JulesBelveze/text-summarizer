@@ -12,6 +12,7 @@ def train_epoch(train_iter, test_iter, criterion, model, optimizer, vocab):
 
     # training network
     model.train()
+    bar = Bar("\tprocessing train batches: ", max=len(train_iter))
     for i, batch in enumerate(train_iter):
         batch_loss_train = 0
         optimizer.zero_grad()
@@ -26,6 +27,8 @@ def train_epoch(train_iter, test_iter, criterion, model, optimizer, vocab):
         batch_loss_train.backward()
         epoch_loss_train += batch_loss_train
         optimizer.step()
+        bar.next()
+    bar.finish()
 
     # evaluating network
     model.eval()
@@ -51,13 +54,13 @@ def train(train_iter, test_iter, criterion, model, optimizer, num_epochs=NUM_EPO
 
     # training loop
     for epoch in range(num_epochs):
+        print("-------------------------------- Epoch nb {} --------------------------------".format(epoch))
         start = time.time()
         epoch_loss_train, epoch_loss_eval = train_epoch(train_iter, test_iter, criterion, model, optimizer, vocab)
         train_loss.append(epoch_loss_train.item())
         eval_loss.append(epoch_loss_eval.item())
         elapsed_time = time.time() - start
-        print("Epoch: {} | loss train: {} | loss eval: {} | time: {}".format(epoch, epoch_loss_train, epoch_loss_eval,
-                                                                             elapsed_time))
+        print("\tloss train: {} | loss eval: {} | time: {}".format(epoch_loss_train, epoch_loss_eval, elapsed_time))
 
     plt.figure()
     plt.plot(range(num_epochs), train_loss)
