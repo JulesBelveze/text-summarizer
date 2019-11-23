@@ -3,13 +3,14 @@ import torch
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
 embedding_dim = 128
-MAX_LEN_STORY = 200
+MAX_LEN_STORY = 400
 hidden_dim = 256
-voc_size = 500
+voc_size = 50000
 MAX_LEN_HIGHLIGHT = 100
 
-NUM_EPOCHS=15
-batch_size=64
+NUM_EPOCHS=100
+batch_size=16
+lr = 0.15
 
 ## tokens variable
 PAD_TOKEN = '[PAD]'

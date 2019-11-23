@@ -30,6 +30,7 @@ def process_story(doc: str):
     story = doc[:index]
     highlights = doc[index:].split("@highlight")
     highlights = [h.strip() for h in highlights if len(h) > 0]
+    highlights = " . ".join(highlights)
     return story, highlights
     # return story, " ".join(["{} {} {}".format(SENTENCE_START, sentence, SENTENCE_END) for sentence in highlights])
 
@@ -56,10 +57,14 @@ def save_pickle(data: List[Dict[str, Union[str, str]]], filename=filename_data) 
         dump(data, f)
 
 
-def split_sets(train=.92, filename=filename_data) -> None:
-    '''split data into train, validation and test sets'''
+def split_sets(train=.92, filename=filename_data, batch_hack=None) -> None:
+    '''split data into train, validation and test sets
+    Params:
+        - batch_hack: None or int specifying that the length of the dataset should be
+          a multiple of the batch_size
+    '''
     data_file = os.path.join(data_dir, filename)
-    train_file, test_file = ['train.pkl', 'test.pkl']
+    train_file, train_file_hacked, test_file, test_file_hacked = 'train.pkl', 'train_hacked.pkl', 'test.pkl', 'test_hacked.pkl'
 
     with open(data_file, 'rb') as f:
         data = load(f)
@@ -69,8 +74,15 @@ def split_sets(train=.92, filename=filename_data) -> None:
         indexes_train = int(len(data) * train)
 
         # saving the different files
-        save_pickle(data[:indexes_train], filename=train_file)  # creating train set
-        save_pickle(data[indexes_train:], filename=test_file)  # creating test set
+        if batch_hack:
+            train_indexes = (indexes_train // batch_hack) * batch_hack
+            test_indexes = ((len(data) - train_indexes) // batch_hack) * batch_hack
+
+            save_pickle(data[:train_indexes], filename=train_file_hacked)
+            save_pickle(data[train_indexes: train_indexes + test_indexes], filename=test_file_hacked)
+        else:
+            save_pickle(data[:indexes_train], filename=train_file)
+            save_pickle(data[indexes_train:], filename=test_file)
 
 
 if __name__ == "__main__":
@@ -80,4 +92,4 @@ if __name__ == "__main__":
         save_pickle(data)
 
     # split data into train, validation and test sets
-    split_sets()
+    split_sets(batch_hack=32)

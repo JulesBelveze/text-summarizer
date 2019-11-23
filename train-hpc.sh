@@ -35,7 +35,7 @@ module load python3/3.6.2
 pip3 install --user virtualenv
 virtualenv env
 . env/bin/activate
-pip3 install --no-cache-dir --user -r requirements.txt
+python3 -m pip install --no-cache-dir -r requirements.txt
 
 # running script
-python3 main.py
+python3 main.py --do-train=True

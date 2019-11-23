@@ -1,7 +1,7 @@
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-from torch.nn.utils.rnn import pack_padded_sequence
+import random
 from vars import *
 
 
@@ -66,37 +66,39 @@ class AttnDecoder(nn.Module):
             hidden_size=hidden_dim,
             num_layers=1,
             bidirectional=False,
-            batch_first=False
+            batch_first=True
         )
         # attention layer (we use the definition in the paper hence tanh)
-        self.attn = nn.Sequential(
-            nn.Linear(hidden_dim * 2, MAX_LEN_STORY),
+        self.W = nn.Sequential(
+            nn.Linear(hidden_dim * 2, 1),
             nn.Tanh()
         )
         self.attn_combine = nn.Linear(hidden_dim * 2, hidden_dim)
-
+        self.dropout = nn.Dropout(.1)
         self.fc = nn.Linear(
-            in_features=hidden_dim,
+            in_features=hidden_dim*2,
             out_features=voc_size
         )
         self.softmax = nn.LogSoftmax(dim=1)
 
-    def forward(self, input, hidden, cell, outputs):
-        embedded = self.embeddings(input).squeeze(1)  # batch * hidden_dim
+    def forward(self, input, decoder_hidden, cell, encoder_outputs):
+        (b, t_k, n) = encoder_outputs.shape
+        embedded = self.embeddings(input.view(batch_size, -1))  # batch * hidden_dim
+        embedded = self.dropout(embedded)
 
-        # compute the attention at the moment
-        attn_weights = F.softmax(
-            self.attn(torch.cat((embedded, hidden[0]), 1)), dim=1)
-        attn_applied = torch.bmm(attn_weights.unsqueeze(1), outputs)
-        attn_applied = attn_applied.squeeze(1)
+        _, (decoder_hidden, cell) = self.lstm(embedded, (decoder_hidden, cell))
 
-        output = torch.cat((embedded, attn_applied), 1)
-        output = self.attn_combine(output).unsqueeze(0)
+        decoder_hidden_expanded = decoder_hidden.permute(1,0,2) # batch_size * hidden_dim
+        decoder_hidden_expanded = decoder_hidden_expanded.expand(b, t_k, n).contiguous() # batch_size * seq_len * hidden_dim
 
-        output, (hidden, cell) = self.lstm(output, (hidden, cell))
-        output = self.fc(output.squeeze(0))
-        output = self.softmax(output).unsqueeze(1)  # unsqueeze for concatenation
-        return output, (hidden, cell)
+        att_features = torch.cat((decoder_hidden_expanded, encoder_outputs),2)# batch_size * seq_lens * 2*hidden_dim
+        e_t = self.W(att_features).squeeze(2) # batch_size * seq_lens
+        a_t = self.softmax(e_t) # batch_size * seq_lens
+
+        a_applied = torch.bmm(a_t.unsqueeze(1), encoder_outputs).squeeze(1)
+        s_t_h_t = torch.cat((decoder_hidden.squeeze(0), a_applied),1) # batch_size * 2*hidden_dim
+        output = self.softmax(self.fc(s_t_h_t))
+        return output, (decoder_hidden, cell)
 
 
 class Seq2seq(nn.Module):
@@ -129,16 +131,24 @@ class Seq2seqAttention(nn.Module):
     def forward(self, input, target):
         encoder_output, (encoder_hidden, encoder_cell) = self.encoder(input)
 
+        # initializing the decoder with the <START> token
         decoder_input = torch.tensor([2] * batch_size,
-                                     dtype=torch.long, device=device).view(batch_size, -1)
+                                     dtype=torch.long, device=device)
 
         decoder_hidden = encoder_hidden
         decoder_cell = encoder_cell
 
-        batch_output = torch.Tensor()
+        batch_output = torch.Tensor().to(device)
         for i in range(MAX_LEN_HIGHLIGHT):
             decoder_output, (decoder_hidden, decoder_cell) = self.decoder(decoder_input, decoder_hidden, decoder_cell,
                                                                           encoder_output)
-            batch_output = torch.cat((batch_output, decoder_output), 1)
+
+            batch_output = torch.cat((batch_output, decoder_output.unsqueeze(1)),1)
+
+            # using teacher forcing
+            if random.uniform(0, 1) > .5:
+                decoder_input = target[:, i]
+            else:
+                decoder_input = decoder_output.argmax(dim=1)
 
         return batch_output

@@ -17,13 +17,16 @@ class Vocab(object):
 
         with open(vocab_file, 'r') as f:
             for line in f:
-                token, _ = line.split()
-                self.word_to_id[token] = token_counter
-                self.id_to_word[token_counter] = token
-                token_counter += 1
-
-                if token_counter >= self.vocab_size:
-                    break
+                try:
+                    token, _ = line.split()
+                    self.word_to_id[token] = token_counter
+                    self.id_to_word[token_counter] = token
+                    token_counter += 1
+                    if token_counter >= self.vocab_size:
+                        break
+                except ValueError as e:
+                    print("Error in line {}: {}".format(token_counter - 4, e))
+                    pass
 
     def word_2_id(self, word: str) -> int:
         if word not in self.word_to_id:
@@ -37,6 +40,9 @@ class Vocab(object):
 
     def sequence_2_id(self, sequence: List[str]) -> List[int]:
         return [self.word_2_id(token) for token in sequence]
+
+    def ids_to_sequence(self, ids):
+        return [self.id_2_word(id) for id in ids]
 
     def one_hot_encode(self, token_id: int) -> List[int]:
         one_hot = [0] * self.vocab_size

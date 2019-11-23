@@ -11,14 +11,14 @@ class Articles(torch.utils.data.Dataset):
     def __init__(self, test=False, data_dir="data", vocab_path='data/vocab'):
         super(Articles, self).__init__()
         '''Initialization'''
-        self.vocab = Vocab('data/vocab', voc_size)
+        self.vocab = Vocab(vocab_path, voc_size)
         self.tokenizer = data.get_tokenizer('basic_english')
         self.max_len_story = MAX_LEN_STORY
         self.nax_len_highlight = MAX_LEN_HIGHLIGHT
 
         is_test = {
-            False: os.path.join(data_dir, "train_small.pkl"),
-            True: os.path.join(data_dir, "test_small.pkl")
+            False: os.path.join(data_dir, "train.pkl"),
+            True: os.path.join(data_dir, "test.pkl")
         }
         self.data_path = is_test.get(test, "Wrong set name.")
 
@@ -31,7 +31,7 @@ class Articles(torch.utils.data.Dataset):
 
     def __getitem__(self, idx):
         '''generates one sample of data'''
-        X, y = self.data[idx]['story'], self.data[idx]['highlights'][0]
+        X, y = self.data[idx]['story'], self.data[idx]['highlights']
         X_tokenized, y_tokenized = list(map(lambda x: self.tokenize(x), [X, y]))
         X_tokenized, y_tokenized = list(map(lambda x: self.words_to_index(x), [X_tokenized, y_tokenized]))
         X_padded = self.padding(X_tokenized)
@@ -40,7 +40,7 @@ class Articles(torch.utils.data.Dataset):
 
     def tokenize(self, sequence):
         '''tokenize a sequence'''
-        tokenized_sequence = [START_TOKEN]
+        tokenized_sequence = []
         tokenized_sequence.extend([token for token in self.tokenizer(sequence)])
         tokenized_sequence.append(STOP_TOKEN)
         return tokenized_sequence

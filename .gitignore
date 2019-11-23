@@ -129,3 +129,7 @@ dmypy.json
 
 # data 
 data/
+utils/*.sh
+
+# models
+*.pt
