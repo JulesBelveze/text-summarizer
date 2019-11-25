@@ -16,6 +16,7 @@ def train_epoch(train_iter, test_iter, criterion, model, optimizer, vocab):
     bar = Bar("\tprocessing train batches: ", max=len(train_iter))
     for i, batch in enumerate(train_iter):
         batch_loss_train, batch_acc_train = 0, 0
+        model.encoder.hidden = model.encoder.init_hidden()
         optimizer.zero_grad()
 
         story, highlight = batch
@@ -51,6 +52,7 @@ def train_epoch(train_iter, test_iter, criterion, model, optimizer, vocab):
     with torch.no_grad():
         for i, batch in enumerate(test_iter):
             batch_loss_eval, batch_acc_eval = 0, 0
+            model.encoder.hidden = model.encoder.init_hidden()
 
             story, highlight = batch
             story = story.to(device)

@@ -8,6 +8,7 @@ from vars import *
 class Encoder(nn.Module):
     def __init__(self):
         super(Encoder, self).__init__()
+        self.num_layer = 1
         self.embeddings = nn.Embedding(
             num_embeddings=voc_size,
             embedding_dim=embedding_dim
@@ -19,6 +20,10 @@ class Encoder(nn.Module):
             bidirectional=False,
             batch_first=True
         )
+
+    def init_hidden(self):
+        return (torch.zeros(self.num_layer, batch_size, hidden_dim, dtype=torch.long, device=device),
+                torch.zeros(self.num_layer, batch_size, hidden_dim, dtype=torch.long, device=device))
 
     def forward(self, input):
         embedded = self.embeddings(input)
@@ -76,7 +81,7 @@ class AttnDecoder(nn.Module):
         self.attn_combine = nn.Linear(hidden_dim * 2, hidden_dim)
         self.dropout = nn.Dropout(.1)
         self.fc = nn.Linear(
-            in_features=hidden_dim*2,
+            in_features=hidden_dim * 2,
             out_features=voc_size
         )
         self.softmax = nn.LogSoftmax(dim=1)
@@ -88,15 +93,16 @@ class AttnDecoder(nn.Module):
 
         _, (decoder_hidden, cell) = self.lstm(embedded, (decoder_hidden, cell))
 
-        decoder_hidden_expanded = decoder_hidden.permute(1,0,2) # batch_size * hidden_dim
-        decoder_hidden_expanded = decoder_hidden_expanded.expand(b, t_k, n).contiguous() # batch_size * seq_len * hidden_dim
+        decoder_hidden_expanded = decoder_hidden.permute(1, 0, 2)  # batch_size * hidden_dim
+        decoder_hidden_expanded = decoder_hidden_expanded.expand(b, t_k,
+                                                                 n).contiguous()  # batch_size * seq_len * hidden_dim
 
-        att_features = torch.cat((decoder_hidden_expanded, encoder_outputs),2)# batch_size * seq_lens * 2*hidden_dim
-        e_t = self.W(att_features).squeeze(2) # batch_size * seq_lens
-        a_t = self.softmax(e_t) # batch_size * seq_lens
+        att_features = torch.cat((decoder_hidden_expanded, encoder_outputs), 2)  # batch_size * seq_lens * 2*hidden_dim
+        e_t = self.W(att_features).squeeze(2)  # batch_size * seq_lens
+        a_t = self.softmax(e_t)  # batch_size * seq_lens
 
         a_applied = torch.bmm(a_t.unsqueeze(1), encoder_outputs).squeeze(1)
-        s_t_h_t = torch.cat((decoder_hidden.squeeze(0), a_applied),1) # batch_size * 2*hidden_dim
+        s_t_h_t = torch.cat((decoder_hidden.squeeze(0), a_applied), 1)  # batch_size * 2*hidden_dim
         output = self.softmax(self.fc(s_t_h_t))
         return output, (decoder_hidden, cell)
 
@@ -143,7 +149,7 @@ class Seq2seqAttention(nn.Module):
             decoder_output, (decoder_hidden, decoder_cell) = self.decoder(decoder_input, decoder_hidden, decoder_cell,
                                                                           encoder_output)
 
-            batch_output = torch.cat((batch_output, decoder_output.unsqueeze(1)),1)
+            batch_output = torch.cat((batch_output, decoder_output.unsqueeze(1)), 1)
 
             # using teacher forcing
             if random.uniform(0, 1) > .5:
