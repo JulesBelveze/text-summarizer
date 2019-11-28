@@ -53,7 +53,7 @@ def load_stories(dir_name: str) -> List[Dict[str, Union[str, str]]]:
 
 def save_pickle(data: List[Dict[str, Union[str, str]]], filename=filename_data) -> None:
     filename = os.path.join(data_dir, filename)
-    with open(filename, 'ab') as f:
+    with open(filename, 'wb+') as f:
         dump(data, f)
 
 
@@ -89,7 +89,7 @@ if __name__ == "__main__":
     dirs = ["data/cnn_stories_tokenized", "data/dm_stories_tokenized"]
     for dir in dirs:
         data = load_stories(dir)
-        save_pickle(data)
+        save_pickle(data, dir.split("/")[1] + "_parsed")
 
     # split data into train, validation and test sets
     split_sets(batch_hack=32)
