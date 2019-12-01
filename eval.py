@@ -34,15 +34,18 @@ def eval(test_iter, model, criterion):
 
 
 def get_batch_prediction(output, target):
+    clean_output, clean_target = [],[]
     for pred, target in zip(output, target):
-        print("\n\nPREDICTION: {}".format(get_sentence_prediction(pred)))
+        # print("\n\nPREDICTION: {}".format(get_sentence_prediction(pred)))
         target = voc.ids_to_sequence(target.tolist())
         try:
             target = target[:target.index("[STOP]")]
+            clean_output.append(get_sentence_prediction(pred))
+            clean_target.append(" ".join(target))
         except ValueError:
             pass
-        print("TARGET: {}".format(" ".join(target)))
-
+        # print("TARGET: {}".format(" ".join(target)))
+    return clean_output, clean_target
 
 def get_sentence_prediction(sentence):
     predicted_sentence = []

@@ -1,8 +1,11 @@
+import os
 import torch
 import shutil
 import numpy as np
+from pyrouge import Rouge155
 from torch.utils.data.sampler import SubsetRandomSampler
 from torch.utils.data import DataLoader
+from eval import get_batch_prediction
 
 
 def save_checkpoint(state, is_best, filename='checkpoint.pt'):
@@ -28,3 +31,33 @@ def get_random_sentences(dataset, num):
     dataiter = iter(loader)
     stories, highlights = dataiter.next()
     return stories, highlights
+
+
+def get_rouge_score(system_dir='predicted_summaries', model_dir='targeted_summaries'):
+    r = Rouge155()
+    r.system_dir = system_dir
+    r.model_dir = model_dir
+    r.system_filename_pattern = 'summary.(\d+).txt'
+    r.model_filename_pattern = 'summary.[A-Z].#ID#.txt'
+
+    output = r.convert_and_evaluate()
+    print(output)
+    output_dict = r.output_to_dict(output)
+    print(output_dict)
+
+
+def get_rouge_files(model, data_iter, system_dir='predicted_summaries', model_dir='targeted_summaries'):
+    counter = 1
+    for story, highlight in data_iter:
+        prediction = model(story, highlight)
+        clean_outputs, clean_targets = get_batch_prediction(prediction, highlight)
+
+        for output, target in zip(clean_outputs, clean_targets):
+            try:
+                with open(os.path.join(system_dir,"summary.{}.txt".format(counter)), 'w+') as f:
+                    f.write(output)
+                with open(os.path.join(model_dir, "summary.A.{}.txt".format(counter)), 'w+') as f:
+                    f.write(target)
+                counter += 1
+            except:
+                pass
