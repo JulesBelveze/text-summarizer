@@ -6,6 +6,7 @@ from pyrouge import Rouge155
 from torch.utils.data.sampler import SubsetRandomSampler
 from torch.utils.data import DataLoader
 from eval import get_batch_prediction
+from vars import device
 
 
 def save_checkpoint(state, is_best, filename='checkpoint.pt'):
@@ -30,7 +31,7 @@ def get_random_sentences(dataset, num):
     loader = DataLoader(dataset, sampler=sampler, batch_size=num)
     dataiter = iter(loader)
     stories, highlights = dataiter.next()
-    return stories, highlights
+    return stories.to(device), highlights.to(device)
 
 
 def get_rouge_score(system_dir='predicted_summaries', model_dir='targeted_summaries'):
@@ -49,7 +50,7 @@ def get_rouge_score(system_dir='predicted_summaries', model_dir='targeted_summar
 def get_rouge_files(model, data_iter, system_dir='predicted_summaries', model_dir='targeted_summaries'):
     counter = 1
     for story, highlight in data_iter:
-        prediction = model(story, highlight)
+        prediction = model(story.to(device), highlight.to(device))
         clean_outputs, clean_targets = get_batch_prediction(prediction, highlight)
 
         for output, target in zip(clean_outputs, clean_targets):

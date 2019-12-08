@@ -3,7 +3,7 @@ import argparse
 from torch.utils.data import DataLoader
 from model import Encoder, Decoder, Seq2seq, Seq2seqAttention, AttnDecoder
 from utils.data import Articles
-from utils.utils import load_ckp, get_random_sentences, get_rouge_files
+from utils.utils import load_ckp, get_random_sentences, get_rouge_files, get_rouge_score
 from train import train
 from eval import eval, get_batch_prediction
 from vars import *
@@ -41,8 +41,8 @@ def run(do_train, do_eval, do_predict, ckpt, get_rouge, max_epochs=100):
             with torch.no_grad():
                 output = model(stories, highlights)
             get_batch_prediction(output, highlights)
-        elif get_rouge:
-            get_rouge_files(model, test_loader)
+    elif get_rouge:
+        get_rouge_score()
 
     else:
         epoch = 0

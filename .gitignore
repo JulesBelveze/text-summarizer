@@ -133,3 +133,6 @@ utils/*.sh
 
 # models
 *.pt
+losses.txt
+predicted_summaries/
+targeted_summaries/
