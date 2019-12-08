@@ -1,4 +1,5 @@
 import numpy as np
+import torch
 from typing import List
 from vars import *
 
@@ -44,19 +45,18 @@ class Vocab(object):
     def ids_to_sequence(self, ids):
         return [self.id_2_word(id) for id in ids]
 
-    def one_hot_encode(self, token_id: int) -> List[int]:
-        one_hot = [0] * self.vocab_size
-        one_hot[int(token_id)] = 1
-        return one_hot
+    def extend_vocab(self, batch_stories):
+        counter = self.vocab_size + 1
+        for story in batch_stories:
+            for token in story:
+                if not token in self.word_to_id:
+                    self.word_to_id[token] = counter
+                    self.id_to_word[counter] = token
+                    counter += 1
 
-    def one_hot_encode_sequence(self, sequence):
-        # Encode each word in the sentence
-        encoding = np.array([self.one_hot_encode(token_id) for token_id in sequence])
-
-        # Reshape encoding s.t. it has shape (num words, vocab size)
-        encoding = encoding.reshape(encoding.shape[0], encoding.shape[1])
-        return encoding
-
-    def one_hot_encode_tensor(self, tensor):
-        encoding = np.array([self.one_hot_encode_sequence(sequence) for sequence in tensor])
-        return torch.LongTensor(encoding)
+    def batch_tokens_to_id(self, batch_seq):
+        list_ids = []
+        for seq in batch_seq:
+            list_ids.append([self.word_2_id(token) for token in seq])
+        array_ids = np.array(list_ids)
+        return torch.LongTensor(np.transpose(array_ids))

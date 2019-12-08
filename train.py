@@ -6,6 +6,7 @@ from progress.bar import Bar
 from utils.vocab import Vocab
 from utils.utils import save_checkpoint
 from vars import *
+from copy import deepcopy
 
 
 def train_epoch(train_iter, test_iter, criterion, model, optimizer, vocab):
@@ -19,10 +20,14 @@ def train_epoch(train_iter, test_iter, criterion, model, optimizer, vocab):
         optimizer.zero_grad()
 
         story, highlight = batch
+        vocab_extended = deepcopy(vocab).extend_vocab(story)
+
+        story = vocab.batch_tokens_to_id(story)
+        highlight = vocab.batch_tokens_to_id(highlight)
         story = story.to(device)
         highlight = highlight.to(device)
 
-        output = model(story, highlight)
+        output = model(story, highlight, vocab_extended)
         for predicted, target in zip(output, highlight):
             predicted = predicted.to(device)
             target = target.to(device)
@@ -31,7 +36,7 @@ def train_epoch(train_iter, test_iter, criterion, model, optimizer, vocab):
 
         # propagating loss
         batch_loss_train.backward()
-        torch.nn.utils.clip_grad_norm_(model.parameters(),5)
+        torch.nn.utils.clip_grad_norm_(model.parameters(), 5)
         epoch_loss_train += batch_loss_train.item()
         optimizer.step()
 

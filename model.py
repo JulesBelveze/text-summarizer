@@ -83,10 +83,14 @@ class AttnDecoder(nn.Module):
             in_features=hidden_dim * 4,
             out_features=voc_size
         )
+        self.W_gen_sig = nn.Sequential(
+            nn.Linear(hidden_dim * 4 + MAX_LEN_STORY, 1),
+            nn.Sigmoid()
+        )
         self.softmax = nn.Softmax(dim=1)
         self.logsoftmax = nn.LogSoftmax(dim=1)
 
-    def forward(self, input, decoder_hidden, cell, encoder_outputs):
+    def forward(self, input, decoder_hidden, cell, encoder_outputs, vocab_extended):
         (b, t_k, n) = encoder_outputs.shape
         embedded = self.embeddings(input).unsqueeze(1)  # batch * hidden_dim
 
@@ -104,6 +108,9 @@ class AttnDecoder(nn.Module):
 
         s_t_h_t = torch.cat((decoder_hidden.squeeze(0), a_applied), 1)  # batch_size * 2*hidden_dim
         output = self.logsoftmax(self.fc(s_t_h_t))
+
+        #TODO: fix
+        cat_gen = torch.cat((a_applied, decoder_hidden, embedded), 1)
         return output, (decoder_hidden, cell)
 
 
@@ -148,7 +155,7 @@ class Seq2seqAttention(nn.Module):
         self.encoder = encoder
         self.decoder = decoder
 
-    def forward(self, input, target):
+    def forward(self, input, target, vocab_extended):
         null_state_encoder = self.encoder.init_hidden()
         encoder_output, (encoder_hidden, encoder_cell) = self.encoder(input, null_state_encoder)
 
@@ -168,11 +175,11 @@ class Seq2seqAttention(nn.Module):
         batch_output = torch.Tensor().to(device)
         for i in range(MAX_LEN_HIGHLIGHT):
             decoder_output, (decoder_hidden, decoder_cell) = self.decoder(decoder_input, decoder_hidden, decoder_cell,
-                                                                          encoder_output)
+                                                                          encoder_output, vocab_extended)
             batch_output = torch.cat((batch_output, decoder_output.unsqueeze(1)), 1)
 
             # using teacher forcing
-            if random.uniform(0, 1) > .5 and self.training:
+            if random.uniform(0, 1) > -1 and self.training:
                 decoder_input = target[:, i]
             else:
                 decoder_input = decoder_output.argmax(dim=1)
