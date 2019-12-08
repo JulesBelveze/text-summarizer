@@ -84,13 +84,13 @@ class AttnDecoder(nn.Module):
             out_features=voc_size
         )
         self.W_gen_sig = nn.Sequential(
-            nn.Linear(hidden_dim * 4 + MAX_LEN_STORY, 1),
+            nn.Linear(hidden_dim * 2 + hidden_dim * 2 + hidden_dim, 1),
             nn.Sigmoid()
         )
         self.softmax = nn.Softmax(dim=1)
         self.logsoftmax = nn.LogSoftmax(dim=1)
 
-    def forward(self, input, decoder_hidden, cell, encoder_outputs, vocab_extended):
+    def forward(self, input, decoder_hidden, cell, encoder_outputs, story_extended, extra_zeros):
         (b, t_k, n) = encoder_outputs.shape
         embedded = self.embeddings(input).unsqueeze(1)  # batch * hidden_dim
 
@@ -107,11 +107,18 @@ class AttnDecoder(nn.Module):
         a_applied = torch.bmm(a_t.unsqueeze(1), encoder_outputs).squeeze(1)
 
         s_t_h_t = torch.cat((decoder_hidden.squeeze(0), a_applied), 1)  # batch_size * 2*hidden_dim
-        output = self.logsoftmax(self.fc(s_t_h_t))
+        p_vocab = self.softmax(self.fc(s_t_h_t))
 
-        #TODO: fix
-        cat_gen = torch.cat((a_applied, decoder_hidden, embedded), 1)
-        return output, (decoder_hidden, cell)
+        cat_gen = torch.cat((a_applied, decoder_hidden.squeeze(0), embedded.squeeze(1)), 1)
+
+        p_gen = self.W_gen_sig(cat_gen)
+        p_vocab = p_vocab * p_gen
+        a_t_p_gen = (1 - p_gen) * a_t
+
+        p_vocab_cat = torch.cat((p_vocab, extra_zeros), 1)
+        output = p_vocab_cat.scatter_add(1, story_extended, a_t_p_gen)
+        print(story_extended)
+        return torch.log(output), (decoder_hidden, cell)
 
 
 class Seq2seq(nn.Module):
@@ -155,7 +162,7 @@ class Seq2seqAttention(nn.Module):
         self.encoder = encoder
         self.decoder = decoder
 
-    def forward(self, input, target, vocab_extended):
+    def forward(self, input, target, story_extended, extra_zeros):
         null_state_encoder = self.encoder.init_hidden()
         encoder_output, (encoder_hidden, encoder_cell) = self.encoder(input, null_state_encoder)
 
@@ -175,7 +182,7 @@ class Seq2seqAttention(nn.Module):
         batch_output = torch.Tensor().to(device)
         for i in range(MAX_LEN_HIGHLIGHT):
             decoder_output, (decoder_hidden, decoder_cell) = self.decoder(decoder_input, decoder_hidden, decoder_cell,
-                                                                          encoder_output, vocab_extended)
+                                                                          encoder_output, story_extended, extra_zeros)
             batch_output = torch.cat((batch_output, decoder_output.unsqueeze(1)), 1)
 
             # using teacher forcing

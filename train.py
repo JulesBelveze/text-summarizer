@@ -20,18 +20,25 @@ def train_epoch(train_iter, test_iter, criterion, model, optimizer, vocab):
         optimizer.zero_grad()
 
         story, highlight = batch
-        vocab_extended = deepcopy(vocab).extend_vocab(story)
+        vocab_extended = deepcopy(vocab)
+        vocab_extended.extend_vocab(story)
 
+        story_extended = vocab_extended.batch_tokens_to_id(story)
+        highlight_extended = vocab_extended.batch_tokens_to_id(highlight)
+        extra_zeros = torch.zeros(batch_size, vocab_extended.vocab_size - voc_size + 1)
         story = vocab.batch_tokens_to_id(story)
         highlight = vocab.batch_tokens_to_id(highlight)
+
+
         story = story.to(device)
         highlight = highlight.to(device)
 
-        output = model(story, highlight, vocab_extended)
-        for predicted, target in zip(output, highlight):
+        output = model(story, highlight, story_extended, extra_zeros)
+        for predicted, target in zip(output, highlight_extended):
             predicted = predicted.to(device)
             target = target.to(device)
             batch_loss_train += criterion(predicted, target)
+
             batch_acc_train += (target == predicted.argmax(dim=1)).sum().item() / MAX_LEN_HIGHLIGHT
 
         # propagating loss
@@ -46,9 +53,9 @@ def train_epoch(train_iter, test_iter, criterion, model, optimizer, vocab):
         bar.next()
     bar.finish()
     # showing last output
-    target_sequence = " ".join(vocab.ids_to_sequence(target.tolist()))
+    target_sequence = " ".join(vocab_extended.ids_to_sequence(target.tolist()))
     predicted_tokens = predicted.argmax(dim=1).tolist()
-    predicted_sequence = " ".join(vocab.ids_to_sequence(predicted_tokens))
+    predicted_sequence = " ".join(vocab_extended.ids_to_sequence(predicted_tokens))
     print("Targeted sentence: {}".format(target_sequence))
     print("Predicted sentence: {}\n".format(predicted_sequence))
 
@@ -58,10 +65,15 @@ def train_epoch(train_iter, test_iter, criterion, model, optimizer, vocab):
             batch_loss_eval, batch_acc_eval = 0, 0
 
             story, highlight = batch
+            vocab_extended = deepcopy(vocab)
+            vocab_extended.extend_vocab(story)
+            story_extended = vocab_extended.batch_tokens_to_id(story)
+            extra_zeros = torch.zeros(batch_size, vocab_extended.vocab_size - voc_size + 1)
+            story = vocab.batch_tokens_to_id(story)
+            highlight = vocab.batch_tokens_to_id(highlight)
             story = story.to(device)
             highlight = highlight.to(device)
-
-            output = model(story, highlight)
+            output = model(story, highlight, story_extended, extra_zeros)
             for predicted, target in zip(output, highlight):
                 batch_loss_eval += criterion(predicted, target).item()
                 batch_acc_eval += (target == predicted.argmax(dim=1)).sum().item() / MAX_LEN_HIGHLIGHT
@@ -74,9 +86,9 @@ def train_epoch(train_iter, test_iter, criterion, model, optimizer, vocab):
             epoch_acc_eval += batch_acc_eval
 
         # showing last output
-        target_sequence = " ".join(vocab.ids_to_sequence(target.tolist()))
+        target_sequence = " ".join(vocab_extended.ids_to_sequence(target.tolist()))
         predicted_tokens = predicted.argmax(dim=1).tolist()
-        predicted_sequence = " ".join(vocab.ids_to_sequence(predicted_tokens))
+        predicted_sequence = " ".join(vocab_extended.ids_to_sequence(predicted_tokens))
         print("Targeted sentence: {}".format(target_sequence))
         print("Predicted sentence: {}".format(predicted_sequence))
 
@@ -86,7 +98,7 @@ def train_epoch(train_iter, test_iter, criterion, model, optimizer, vocab):
 
 def train(train_iter, test_iter, criterion, model, optimizer, epoch_start=0, num_epochs=NUM_EPOCHS):
     train_loss, eval_loss, best_loss, epochs = [], [], 0, []
-    vocab = Vocab('data/vocab', voc_size)
+    vocab = Vocab('data/vocab_dummy2', voc_size)
 
     # training loop
     for epoch in range(epoch_start, num_epochs):

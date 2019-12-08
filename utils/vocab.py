@@ -46,13 +46,14 @@ class Vocab(object):
         return [self.id_2_word(id) for id in ids]
 
     def extend_vocab(self, batch_stories):
-        counter = self.vocab_size + 1
+        counter = self.vocab_size
         for story in batch_stories:
             for token in story:
                 if not token in self.word_to_id:
+                    counter += 1
                     self.word_to_id[token] = counter
                     self.id_to_word[counter] = token
-                    counter += 1
+        self.vocab_size = counter
 
     def batch_tokens_to_id(self, batch_seq):
         list_ids = []

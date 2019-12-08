@@ -3,10 +3,10 @@ import torch
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
 embedding_dim = 128
-MAX_LEN_STORY = 300
-hidden_dim = 256
-voc_size = 1000
-MAX_LEN_HIGHLIGHT = 100
+MAX_LEN_STORY = 60
+hidden_dim = 128
+voc_size = 17
+MAX_LEN_HIGHLIGHT = 9
 
 NUM_EPOCHS=100
 batch_size=16
