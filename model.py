@@ -111,12 +111,12 @@ class AttnDecoder(nn.Module):
 
         cat_gen = torch.cat((a_applied, decoder_hidden.squeeze(0), embedded.squeeze(1)), 1)
 
-        p_gen = self.W_gen_sig(cat_gen)
+        p_gen = self.W_gen_sig(cat_gen).clamp(min=1e-8)
         p_vocab = p_vocab * p_gen
         a_t_p_gen = (1 - p_gen) * a_t
 
         p_vocab_cat = torch.cat((p_vocab, extra_zeros), 1)
-        output = p_vocab_cat.scatter_add(1, story_extended, a_t_p_gen)
+        output = p_vocab_cat.scatter_add(1, story_extended, a_t_p_gen).clamp(min=1e-8)
         print(story_extended)
         return torch.log(output), (decoder_hidden, cell)
 

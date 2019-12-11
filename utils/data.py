@@ -8,7 +8,7 @@ from vars import *
 
 
 class Articles(torch.utils.data.Dataset):
-    def __init__(self, test=False, data_dir="data", vocab_path='data/vocab_dummy2'):
+    def __init__(self, test=False, data_dir="data", vocab_path='data/vocab'):
         super(Articles, self).__init__()
         '''Initialization'''
         self.vocab = Vocab(vocab_path, voc_size)
@@ -17,8 +17,8 @@ class Articles(torch.utils.data.Dataset):
         self.max_len_highlight = MAX_LEN_HIGHLIGHT
 
         is_test = {
-            False: os.path.join(data_dir, "train_dummy2.pkl"),
-            True: os.path.join(data_dir, "test_dummy2.pkl")
+            False: os.path.join(data_dir, "train.pkl"),
+            True: os.path.join(data_dir, "test.pkl")
         }
         self.data_path = is_test.get(test, "Wrong set name.")
 

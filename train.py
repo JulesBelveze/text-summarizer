@@ -25,13 +25,17 @@ def train_epoch(train_iter, test_iter, criterion, model, optimizer, vocab):
 
         story_extended = vocab_extended.batch_tokens_to_id(story)
         highlight_extended = vocab_extended.batch_tokens_to_id(highlight)
-        extra_zeros = torch.zeros(batch_size, vocab_extended.vocab_size - voc_size + 1)
+        extra_zeros = torch.zeros(batch_size, vocab_extended.vocab_size - voc_size + 1).clamp(min=1e-8)
         story = vocab.batch_tokens_to_id(story)
         highlight = vocab.batch_tokens_to_id(highlight)
 
 
         story = story.to(device)
         highlight = highlight.to(device)
+
+        story_extended = story_extended.to(device)
+        highlight_extended = highlight_extended.to(device)
+        extra_zeros = extra_zeros.to(device)
 
         output = model(story, highlight, story_extended, extra_zeros)
         for predicted, target in zip(output, highlight_extended):
@@ -68,11 +72,18 @@ def train_epoch(train_iter, test_iter, criterion, model, optimizer, vocab):
             vocab_extended = deepcopy(vocab)
             vocab_extended.extend_vocab(story)
             story_extended = vocab_extended.batch_tokens_to_id(story)
-            extra_zeros = torch.zeros(batch_size, vocab_extended.vocab_size - voc_size + 1)
+            extra_zeros = torch.zeros(batch_size, vocab_extended.vocab_size - voc_size + 1).clamp(min=1e-8)
             story = vocab.batch_tokens_to_id(story)
             highlight = vocab.batch_tokens_to_id(highlight)
+
+
             story = story.to(device)
             highlight = highlight.to(device)
+
+            story_extended = story_extended.to(device)
+            highlight_extended = highlight_extended.to(device)
+            extra_zeros = extra_zeros.to(device)
+
             output = model(story, highlight, story_extended, extra_zeros)
             for predicted, target in zip(output, highlight):
                 batch_loss_eval += criterion(predicted, target).item()
@@ -98,7 +109,7 @@ def train_epoch(train_iter, test_iter, criterion, model, optimizer, vocab):
 
 def train(train_iter, test_iter, criterion, model, optimizer, epoch_start=0, num_epochs=NUM_EPOCHS):
     train_loss, eval_loss, best_loss, epochs = [], [], 0, []
-    vocab = Vocab('data/vocab_dummy2', voc_size)
+    vocab = Vocab('data/vocab', voc_size)
 
     # training loop
     for epoch in range(epoch_start, num_epochs):
