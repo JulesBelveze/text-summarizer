@@ -7,7 +7,6 @@ from typing import List, Dict, Union
 from pickle import dump, load
 
 strip_regex = "|".join(['LRB', 'RRB', 'LSB', 'RSB'])
-filename_data = "data.pkl"
 data_dir = "data/"
 
 
@@ -30,8 +29,7 @@ def process_story(doc: str):
     story = doc[:index]
     highlights = doc[index:].split("@highlight")
     highlights = [h.strip() for h in highlights if len(h) > 0]
-    highlights = " . ".join(highlights)
-    return story, highlights
+    return story, " . ".join(highlights)
     # return story, " ".join(["{} {} {}".format(SENTENCE_START, sentence, SENTENCE_END) for sentence in highlights])
 
 
@@ -51,45 +49,51 @@ def load_stories(dir_name: str) -> List[Dict[str, Union[str, str]]]:
     return data
 
 
-def save_pickle(data: List[Dict[str, Union[str, str]]], filename=filename_data) -> None:
+def save_pickle(data: List[Dict[str, Union[str, str]]], filename) -> None:
     filename = os.path.join(data_dir, filename)
     with open(filename, 'wb+') as f:
         dump(data, f)
 
 
-def split_sets(train=.92, filename=filename_data, batch_hack=None) -> None:
+def get_sets(train=.92, cnn_pkl_location="data/cnn_stories_tokenized.pkl",
+             dm_pkl_location="data/dm_stories_tokenized.pkl", batch_hack=None) -> None:
     '''split data into train, validation and test sets
     Params:
+        - cnn_pkl_location: location of cnn preprocessed stories
+        - dm_pkl_location: location of dm preprocessed stories
         - batch_hack: None or int specifying that the length of the dataset should be
           a multiple of the batch_size
     '''
-    data_file = os.path.join(data_dir, filename)
-    train_file, train_file_hacked, test_file, test_file_hacked = 'train.pkl', 'train_hacked.pkl', 'test.pkl', 'test_hacked.pkl'
+    train_file, test_file = 'train.pkl', 'test.pkl'
 
-    with open(data_file, 'rb') as f:
+    with open(cnn_pkl_location, 'rb') as f:
         data = load(f)
-        random.shuffle(data)
 
-        # computing sets indexes
-        indexes_train = int(len(data) * train)
+    with open(dm_pkl_location, 'rb') as f:
+        data.extend(load(f))
 
-        # saving the different files
-        if batch_hack:
-            train_indexes = (indexes_train // batch_hack) * batch_hack
-            test_indexes = ((len(data) - train_indexes) // batch_hack) * batch_hack
+    random.shuffle(data)
 
-            save_pickle(data[:train_indexes], filename=train_file_hacked)
-            save_pickle(data[train_indexes: train_indexes + test_indexes], filename=test_file_hacked)
-        else:
-            save_pickle(data[:indexes_train], filename=train_file)
-            save_pickle(data[indexes_train:], filename=test_file)
+    # computing sets indexes
+    indexes_train = int(len(data) * train)
+
+    # saving the different files
+    if batch_hack:
+        train_indexes = (indexes_train // batch_hack) * batch_hack
+        test_indexes = ((len(data) - train_indexes) // batch_hack) * batch_hack
+
+        save_pickle(data[:train_indexes], filename=train_file)
+        save_pickle(data[train_indexes: train_indexes + test_indexes], filename=test_file)
+    else:
+        save_pickle(data[:indexes_train], filename=train_file)
+        save_pickle(data[indexes_train:], filename=test_file)
 
 
 if __name__ == "__main__":
     dirs = ["data/cnn_stories_tokenized", "data/dm_stories_tokenized"]
     for dir in dirs:
         data = load_stories(dir)
-        save_pickle(data, dir.split("/")[1] + "_parsed")
+        save_pickle(data, dir.split("/")[1] + ".pkl")
 
     # split data into train, validation and test sets
-    split_sets(batch_hack=32)
+    get_sets(batch_hack=32)

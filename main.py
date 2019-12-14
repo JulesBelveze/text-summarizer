@@ -41,7 +41,8 @@ def run(do_train, do_eval, do_predict, ckpt, get_rouge, max_epochs=100):
             with torch.no_grad():
                 output = model(stories, highlights)
             get_batch_prediction(output, highlights)
-    elif get_rouge:
+    if get_rouge:
+        get_rouge_files(model, test_loader)
         get_rouge_score()
 
     else:

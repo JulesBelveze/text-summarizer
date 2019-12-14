@@ -117,7 +117,6 @@ class AttnDecoder(nn.Module):
 
         p_vocab_cat = torch.cat((p_vocab, extra_zeros), 1)
         output = p_vocab_cat.scatter_add(1, story_extended, a_t_p_gen).clamp(min=1e-8)
-        print(story_extended)
         return torch.log(output), (decoder_hidden, cell)
 
 
