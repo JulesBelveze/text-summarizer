@@ -5,7 +5,9 @@ import matplotlib.pyplot as plt
 from progress.bar import Bar
 from utils.vocab import Vocab
 from utils.utils import save_checkpoint
+from utils.data import Batcher
 from vars import *
+from copy import deepcopy
 
 
 def train_epoch(train_iter, test_iter, criterion, model, optimizer, vocab):
@@ -19,19 +21,28 @@ def train_epoch(train_iter, test_iter, criterion, model, optimizer, vocab):
         optimizer.zero_grad()
 
         story, highlight = batch
+
+        batcher = Batcher(story, highlight, vocab)
+        story, highlight, extra_zeros, story_extended, highlight_extended, vocab_extended = batcher.get_batch(
+            get_vocab_extended=True)
+
         story = story.to(device)
         highlight = highlight.to(device)
+        story_extended = story_extended.to(device)
+        highlight_extended = highlight_extended.to(device)
+        extra_zeros = extra_zeros.to(device)
 
-        output = model(story, highlight)
-        for predicted, target in zip(output, highlight):
+        output = model(story, highlight, story_extended, extra_zeros)
+        for predicted, target in zip(output, highlight_extended):
             predicted = predicted.to(device)
             target = target.to(device)
             batch_loss_train += criterion(predicted, target)
+
             batch_acc_train += (target == predicted.argmax(dim=1)).sum().item() / MAX_LEN_HIGHLIGHT
 
         # propagating loss
         batch_loss_train.backward()
-        torch.nn.utils.clip_grad_norm_(model.parameters(),5)
+        torch.nn.utils.clip_grad_norm_(model.parameters(), 5)
         epoch_loss_train += batch_loss_train.item()
         optimizer.step()
 
@@ -41,9 +52,9 @@ def train_epoch(train_iter, test_iter, criterion, model, optimizer, vocab):
         bar.next()
     bar.finish()
     # showing last output
-    target_sequence = " ".join(vocab.ids_to_sequence(target.tolist()))
+    target_sequence = " ".join(vocab_extended.ids_to_sequence(target.tolist()))
     predicted_tokens = predicted.argmax(dim=1).tolist()
-    predicted_sequence = " ".join(vocab.ids_to_sequence(predicted_tokens))
+    predicted_sequence = " ".join(vocab_extended.ids_to_sequence(predicted_tokens))
     print("Targeted sentence: {}".format(target_sequence))
     print("Predicted sentence: {}\n".format(predicted_sequence))
 
@@ -53,10 +64,16 @@ def train_epoch(train_iter, test_iter, criterion, model, optimizer, vocab):
             batch_loss_eval, batch_acc_eval = 0, 0
 
             story, highlight = batch
+            batcher = Batcher(story, highlight, vocab)
+            story, highlight, extra_zeros, story_extended, _, vocab_extended = batcher.get_batch(
+                get_vocab_extended=True)
+
             story = story.to(device)
             highlight = highlight.to(device)
+            story_extended = story_extended.to(device)
+            extra_zeros = extra_zeros.to(device)
 
-            output = model(story, highlight)
+            output = model(story, highlight, story_extended, extra_zeros)
             for predicted, target in zip(output, highlight):
                 batch_loss_eval += criterion(predicted, target).item()
                 batch_acc_eval += (target == predicted.argmax(dim=1)).sum().item() / MAX_LEN_HIGHLIGHT
@@ -69,9 +86,9 @@ def train_epoch(train_iter, test_iter, criterion, model, optimizer, vocab):
             epoch_acc_eval += batch_acc_eval
 
         # showing last output
-        target_sequence = " ".join(vocab.ids_to_sequence(target.tolist()))
+        target_sequence = " ".join(vocab_extended.ids_to_sequence(target.tolist()))
         predicted_tokens = predicted.argmax(dim=1).tolist()
-        predicted_sequence = " ".join(vocab.ids_to_sequence(predicted_tokens))
+        predicted_sequence = " ".join(vocab_extended.ids_to_sequence(predicted_tokens))
         print("Targeted sentence: {}".format(target_sequence))
         print("Predicted sentence: {}".format(predicted_sequence))
 

@@ -33,16 +33,19 @@ def eval(test_iter, model, criterion):
         print("Acc: {}".format(epoch_acc_eval))
 
 
-def get_batch_prediction(output, target):
+def get_batch_prediction(output, target, vocab=voc):
+    clean_output, clean_target = [],[]
     for pred, target in zip(output, target):
-        print("\n\nPREDICTION: {}".format(get_sentence_prediction(pred)))
-        target = voc.ids_to_sequence(target.tolist())
+        # print("\n\nPREDICTION: {}".format(get_sentence_prediction(pred)))
+        target = vocab.ids_to_sequence(target.tolist())
         try:
             target = target[:target.index("[STOP]")]
+            clean_output.append(get_sentence_prediction(pred))
+            clean_target.append(" ".join(target))
         except ValueError:
             pass
-        print("TARGET: {}".format(" ".join(target)))
-
+        # print("TARGET: {}".format(" ".join(target)))
+    return clean_output, clean_target
 
 def get_sentence_prediction(sentence):
     predicted_sentence = []

@@ -83,10 +83,14 @@ class AttnDecoder(nn.Module):
             in_features=hidden_dim * 4,
             out_features=voc_size
         )
+        self.W_gen_sig = nn.Sequential(
+            nn.Linear(hidden_dim * 2 + hidden_dim * 2 + hidden_dim, 1),
+            nn.Sigmoid()
+        )
         self.softmax = nn.Softmax(dim=1)
         self.logsoftmax = nn.LogSoftmax(dim=1)
 
-    def forward(self, input, decoder_hidden, cell, encoder_outputs):
+    def forward(self, input, decoder_hidden, cell, encoder_outputs, story_extended, extra_zeros):
         (b, t_k, n) = encoder_outputs.shape
         embedded = self.embeddings(input).unsqueeze(1)  # batch * hidden_dim
 
@@ -103,8 +107,17 @@ class AttnDecoder(nn.Module):
         a_applied = torch.bmm(a_t.unsqueeze(1), encoder_outputs).squeeze(1)
 
         s_t_h_t = torch.cat((decoder_hidden.squeeze(0), a_applied), 1)  # batch_size * 2*hidden_dim
-        output = self.logsoftmax(self.fc(s_t_h_t))
-        return output, (decoder_hidden, cell)
+        p_vocab = self.softmax(self.fc(s_t_h_t))
+
+        cat_gen = torch.cat((a_applied, decoder_hidden.squeeze(0), embedded.squeeze(1)), 1)
+
+        p_gen = self.W_gen_sig(cat_gen).clamp(min=1e-8)
+        p_vocab = p_vocab * p_gen
+        a_t_p_gen = (1 - p_gen) * a_t
+
+        p_vocab_cat = torch.cat((p_vocab, extra_zeros), 1)
+        output = p_vocab_cat.scatter_add(1, story_extended, a_t_p_gen).clamp(min=1e-8)
+        return torch.log(output), (decoder_hidden, cell)
 
 
 class Seq2seq(nn.Module):
@@ -148,7 +161,7 @@ class Seq2seqAttention(nn.Module):
         self.encoder = encoder
         self.decoder = decoder
 
-    def forward(self, input, target):
+    def forward(self, input, target, story_extended, extra_zeros):
         null_state_encoder = self.encoder.init_hidden()
         encoder_output, (encoder_hidden, encoder_cell) = self.encoder(input, null_state_encoder)
 
@@ -168,11 +181,11 @@ class Seq2seqAttention(nn.Module):
         batch_output = torch.Tensor().to(device)
         for i in range(MAX_LEN_HIGHLIGHT):
             decoder_output, (decoder_hidden, decoder_cell) = self.decoder(decoder_input, decoder_hidden, decoder_cell,
-                                                                          encoder_output)
+                                                                          encoder_output, story_extended, extra_zeros)
             batch_output = torch.cat((batch_output, decoder_output.unsqueeze(1)), 1)
 
             # using teacher forcing
-            if random.uniform(0, 1) > .5 and self.training:
+            if random.uniform(0, 1) > -1 and self.training:
                 decoder_input = target[:, i]
             else:
                 decoder_input = decoder_output.argmax(dim=1)
