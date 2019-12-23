@@ -10,7 +10,7 @@ from progress.bar import Bar
 from eval import get_batch_prediction
 from vars import *
 from utils.vocab import Vocab
-from copy import deepcopy
+from utils.data import Batcher
 
 list_chars = list(string.ascii_uppercase)
 
@@ -62,13 +62,9 @@ def get_rouge_files(model, data_iter, system_dir='predicted_summaries', model_di
     for i, batch in enumerate(data_iter):
         story, highlight = batch
 
-        vocab_extended = deepcopy(vocab)
-        vocab_extended.extend_vocab(story)
-
-        story_extended = vocab_extended.batch_tokens_to_id(story)
-        extra_zeros = torch.zeros(batch_size, vocab_extended.vocab_size - voc_size + 1).clamp(min=1e-8)
-        highlight = vocab.batch_tokens_to_id(highlight)
-        story = vocab.batch_tokens_to_id(story)
+        batcher = Batcher(story, highlight, vocab)
+        story, highlight, extra_zeros, story_extended, highlight_extended, vocab_extended = batcher.get_batch(
+            get_vocab_extended=True)
 
         prediction = model(story.to(device), highlight.to(device), story_extended, extra_zeros)
         clean_outputs, clean_targets = get_batch_prediction(prediction, highlight, vocab_extended)

@@ -5,6 +5,7 @@ import matplotlib.pyplot as plt
 from progress.bar import Bar
 from utils.vocab import Vocab
 from utils.utils import save_checkpoint
+from utils.data import Batcher
 from vars import *
 from copy import deepcopy
 
@@ -20,19 +21,13 @@ def train_epoch(train_iter, test_iter, criterion, model, optimizer, vocab):
         optimizer.zero_grad()
 
         story, highlight = batch
-        vocab_extended = deepcopy(vocab)
-        vocab_extended.extend_vocab(story)
 
-        story_extended = vocab_extended.batch_tokens_to_id(story)
-        highlight_extended = vocab_extended.batch_tokens_to_id(highlight)
-        extra_zeros = torch.zeros(batch_size, vocab_extended.vocab_size - voc_size + 1).clamp(min=1e-8)
-        story = vocab.batch_tokens_to_id(story)
-        highlight = vocab.batch_tokens_to_id(highlight)
-
+        batcher = Batcher(story, highlight, vocab)
+        story, highlight, extra_zeros, story_extended, highlight_extended, vocab_extended = batcher.get_batch(
+            get_vocab_extended=True)
 
         story = story.to(device)
         highlight = highlight.to(device)
-
         story_extended = story_extended.to(device)
         highlight_extended = highlight_extended.to(device)
         extra_zeros = extra_zeros.to(device)
@@ -69,19 +64,13 @@ def train_epoch(train_iter, test_iter, criterion, model, optimizer, vocab):
             batch_loss_eval, batch_acc_eval = 0, 0
 
             story, highlight = batch
-            vocab_extended = deepcopy(vocab)
-            vocab_extended.extend_vocab(story)
-            story_extended = vocab_extended.batch_tokens_to_id(story)
-            extra_zeros = torch.zeros(batch_size, vocab_extended.vocab_size - voc_size + 1).clamp(min=1e-8)
-            story = vocab.batch_tokens_to_id(story)
-            highlight = vocab.batch_tokens_to_id(highlight)
-
+            batcher = Batcher(story, highlight, vocab)
+            story, highlight, extra_zeros, story_extended, _, vocab_extended = batcher.get_batch(
+                get_vocab_extended=True)
 
             story = story.to(device)
             highlight = highlight.to(device)
-
             story_extended = story_extended.to(device)
-            highlight_extended = highlight_extended.to(device)
             extra_zeros = extra_zeros.to(device)
 
             output = model(story, highlight, story_extended, extra_zeros)

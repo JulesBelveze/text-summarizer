@@ -5,6 +5,7 @@ import torchtext.data as data
 from pickle import load
 from utils.vocab import Vocab
 from vars import *
+from copy import deepcopy
 
 
 class Articles(torch.utils.data.Dataset):
@@ -60,3 +61,23 @@ class Articles(torch.utils.data.Dataset):
         else:
             sequence += [PAD_TOKEN] * (max_len - len(sequence))
         return sequence
+
+
+class Batcher:
+    def __init__(self, story, highlight, vocab):
+        self.vocab = vocab
+        self.story = story
+        self.highlight = highlight
+
+        self.vocab_extended = deepcopy(vocab)
+        self.vocab_extended.extend_vocab(story)
+
+    def get_batch(self, get_vocab_extended=False):
+        story = self.vocab.batch_tokens_to_id(self.story)
+        highlight = self.vocab.batch_tokens_to_id(self.highlight)
+        extra_zero = torch.zeros(batch_size, self.vocab_extended.vocab_size - voc_size + 1).clamp(min=1e-8)
+        story_extended = self.vocab_extended.batch_tokens_to_id(self.story)
+        highlight_extended = self.vocab_extended.batch_tokens_to_id(self.highlight)
+        vocab_extended = self.vocab_extended if get_vocab_extended else None
+        return story, highlight, extra_zero, story_extended, highlight_extended, vocab_extended
+

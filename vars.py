@@ -2,6 +2,8 @@ import torch
 
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
+vocab_file = "data/vocab"
+
 embedding_dim = 128
 MAX_LEN_STORY = 300
 hidden_dim = 128
