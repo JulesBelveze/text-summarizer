@@ -5,7 +5,7 @@ device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 vocab_file = "data/vocab"
 
 embedding_dim = 128
-MAX_LEN_STORY = 300
+MAX_LEN_STORY = 1000
 hidden_dim = 128
 voc_size = 20000
 MAX_LEN_HIGHLIGHT = 100

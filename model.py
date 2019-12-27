@@ -25,9 +25,16 @@ class Encoder(nn.Module):
         return (torch.zeros(2 * self.num_layer, batch_size, hidden_dim, dtype=torch.float, device=device),
                 torch.zeros(2 * self.num_layer, batch_size, hidden_dim, dtype=torch.float, device=device))
 
-    def forward(self, input, state):
+    def forward(self, input, state, X_lens, pad_value):
+
         embedded = self.embeddings(input)
+
+        embedded = torch.nn.utils.rnn.pack_padded_sequence(embedded,X_lens, batch_first=True)
+
+        #print(embedded)
+        #print(state)
         output, (hidden, cell) = self.lstm(embedded, state)
+        output, x_lens = torch.nn.utils.rnn.pad_packed_sequence(output,batch_first=True,total_length=MAX_LEN_STORY, padding_value=pad_value)
         return output, (hidden, cell)
 
 
@@ -57,7 +64,6 @@ class Decoder(nn.Module):
         output = self.fc(output.squeeze(1))
         output = self.logsoftmax(output)
         return output, (hidden, cell)
-
 
 class AttnDecoder(nn.Module):
     def __init__(self):
@@ -91,6 +97,7 @@ class AttnDecoder(nn.Module):
         self.logsoftmax = nn.LogSoftmax(dim=1)
 
     def forward(self, input, decoder_hidden, cell, encoder_outputs, story_extended, extra_zeros):
+        
         (b, t_k, n) = encoder_outputs.shape
         embedded = self.embeddings(input).unsqueeze(1)  # batch * hidden_dim
 
@@ -161,9 +168,9 @@ class Seq2seqAttention(nn.Module):
         self.encoder = encoder
         self.decoder = decoder
 
-    def forward(self, input, target, story_extended, extra_zeros):
+    def forward(self, input, target, story_extended, extra_zeros, X_lens, pad_value):
         null_state_encoder = self.encoder.init_hidden()
-        encoder_output, (encoder_hidden, encoder_cell) = self.encoder(input, null_state_encoder)
+        encoder_output, (encoder_hidden, encoder_cell) = self.encoder(input, null_state_encoder, X_lens, pad_value)
 
         encoder_l, encoder_r = encoder_hidden[0], encoder_hidden[1]
         encoder_hidden = torch.cat((encoder_l, encoder_r), 1).unsqueeze(0)

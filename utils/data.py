@@ -6,7 +6,14 @@ from pickle import load
 from utils.vocab import Vocab
 from vars import *
 from copy import deepcopy
+from torch.nn.utils.rnn import pad_sequence
 
+# function to sort batch according to sequence length
+def sort_batch(X, y, lengths):
+    lengths, indx = lengths.sort(dim=0, descending=True)
+    X = X[indx]
+    y = y[indx]
+    return X, y, lengths 
 
 class Articles(torch.utils.data.Dataset):
     def __init__(self, test=False, data_dir="data", vocab_path='data/vocab'):
@@ -18,8 +25,8 @@ class Articles(torch.utils.data.Dataset):
         self.max_len_highlight = MAX_LEN_HIGHLIGHT
 
         is_test = {
-            False: os.path.join(data_dir, "train.pkl"),
-            True: os.path.join(data_dir, "test.pkl")
+            False: os.path.join(data_dir, "trainchunk.pkl"),
+            True: os.path.join(data_dir, "testchunk.pkl")
         }
         self.data_path = is_test.get(test, "Wrong set name.")
 
@@ -35,9 +42,15 @@ class Articles(torch.utils.data.Dataset):
         X, y = self.data[idx]['story'], self.data[idx]['highlights']
         X_tokenized, y_tokenized = list(map(lambda x: self.tokenize(x), [X, y]))
         # X_tokenized, y_tokenized = list(map(lambda x: self.words_to_index(x), [X_tokenized, y_tokenized]))
+        
+        if len(X_tokenized) <= MAX_LEN_STORY:
+            X_len = len(X_tokenized)
+        else:
+            X_len = MAX_LEN_STORY
+        y_len = len(y_tokenized)
         X_padded = self.padding(X_tokenized)
         y_padded = self.padding(y_tokenized, sequence_type="highlight")
-        return X_padded, y_padded
+        return X_padded, y_padded, X_len, y_len
 
     def tokenize(self, sequence):
         '''tokenize a sequence'''

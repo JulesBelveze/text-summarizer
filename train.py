@@ -5,7 +5,7 @@ import matplotlib.pyplot as plt
 from progress.bar import Bar
 from utils.vocab import Vocab
 from utils.utils import save_checkpoint
-from utils.data import Batcher
+from utils.data import Batcher, sort_batch
 from vars import *
 from copy import deepcopy
 
@@ -20,11 +20,14 @@ def train_epoch(train_iter, test_iter, criterion, model, optimizer, vocab):
         batch_loss_train, batch_acc_train = 0, 0
         optimizer.zero_grad()
 
-        story, highlight = batch
+        story, highlight, X_lens, y_lens = batch
 
         batcher = Batcher(story, highlight, vocab)
         story, highlight, extra_zeros, story_extended, highlight_extended, vocab_extended = batcher.get_batch(
             get_vocab_extended=True)
+
+
+        story,highlight,X_lens = sort_batch(story, highlight, X_lens)
 
         story = story.to(device)
         highlight = highlight.to(device)
@@ -32,7 +35,7 @@ def train_epoch(train_iter, test_iter, criterion, model, optimizer, vocab):
         highlight_extended = highlight_extended.to(device)
         extra_zeros = extra_zeros.to(device)
 
-        output = model(story, highlight, story_extended, extra_zeros)
+        output = model(story, highlight, story_extended, extra_zeros, X_lens, vocab.word_2_id(PAD_TOKEN))
         for predicted, target in zip(output, highlight_extended):
             predicted = predicted.to(device)
             target = target.to(device)
@@ -73,7 +76,7 @@ def train_epoch(train_iter, test_iter, criterion, model, optimizer, vocab):
             story_extended = story_extended.to(device)
             extra_zeros = extra_zeros.to(device)
 
-            output = model(story, highlight, story_extended, extra_zeros)
+            output = model(story, highlight, story_extended, extra_zeros, X_lens, vocab.word_2_id(PAD_TOKEN))
             for predicted, target in zip(output, highlight):
                 batch_loss_eval += criterion(predicted, target).item()
                 batch_acc_eval += (target == predicted.argmax(dim=1)).sum().item() / MAX_LEN_HIGHLIGHT

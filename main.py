@@ -7,6 +7,7 @@ from utils.utils import load_ckp, get_random_sentences, get_rouge_files, get_rou
 from train import train
 from eval import eval, get_batch_prediction
 from vars import *
+from utils.vocab import Vocab
 
 
 def parse_args():
@@ -30,7 +31,9 @@ def run(do_train, do_eval, do_predict, ckpt, get_rouge, max_epochs=100):
     model = Seq2seqAttention(encoder, attention_decoder)
     model.to(device)
     optimizer = torch.optim.Adagrad(model.parameters(), lr=lr)
-    loss_function = torch.nn.NLLLoss()
+    
+    vocab = Vocab('data/vocab', voc_size)
+    loss_function = torch.nn.NLLLoss(ignore_index=vocab.word_2_id(PAD_TOKEN))
 
     if ckpt:
         model, optimizer, epoch = load_ckp(checkpoint_path=ckpt, model=model, optimizer=optimizer)
