@@ -66,11 +66,12 @@ def train_epoch(train_iter, test_iter, criterion, model, optimizer, vocab):
         for i, batch in enumerate(test_iter):
             batch_loss_eval, batch_acc_eval = 0, 0
 
-            story, highlight = batch
+            story, highlight, X_lens, y_lens = batch
             batcher = Batcher(story, highlight, vocab)
             story, highlight, extra_zeros, story_extended, _, vocab_extended = batcher.get_batch(
                 get_vocab_extended=True)
 
+            story,highlight,X_lens = sort_batch(story, highlight, X_lens)
             story = story.to(device)
             highlight = highlight.to(device)
             story_extended = story_extended.to(device)
