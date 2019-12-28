@@ -30,7 +30,9 @@ class Vocab(object):
                     pass
 
     def word_2_id(self, word: str) -> int:
-        if word not in self.word_to_id:
+        if word == SENTENCE_END:
+            return self.word_to_id["."]
+        elif word not in self.word_to_id:
             return self.word_to_id[UNKNOWN_TOKEN]
         return self.word_to_id[word]
 
@@ -58,6 +60,8 @@ class Vocab(object):
     def batch_tokens_to_id(self, batch_seq):
         list_ids = []
         for seq in batch_seq:
-            list_ids.append([self.word_2_id(token) for token in seq])
+            if len([self.word_2_id(token) for token in seq if token != SENTENCE_START]) == 0:
+                print(seq)
+            list_ids.append([self.word_2_id(token) for token in seq if token != SENTENCE_START])
         array_ids = np.array(list_ids)
         return torch.LongTensor(np.transpose(array_ids))

@@ -2,6 +2,7 @@ import torch
 from torch.autograd import Variable
 from vars import *
 from utils.vocab import Vocab
+from utils.data import Batcher
 
 voc = Vocab("data/vocab", voc_size)
 stop_id, unk_id, pad_id = voc.word_2_id(STOP_TOKEN), voc.word_2_id(UNKNOWN_TOKEN), voc.word_2_id((PAD_TOKEN))
@@ -11,13 +12,17 @@ def eval(test_iter, model, criterion):
     with torch.no_grad():
         for i, batch in enumerate(test_iter):
             batch_loss_eval, batch_acc_eval = 0, 0
-            model.encoder.hidden = model.encoder.init_hidden()
-
             story, highlight = batch
+            batcher = Batcher(story, highlight, voc)
+            story, highlight, extra_zeros, story_extended, _, vocab_extended = batcher.get_batch(
+                get_vocab_extended=True)
+
             story = story.to(device)
             highlight = highlight.to(device)
+            story_extended = story_extended.to(device)
+            extra_zeros = extra_zeros.to(device)
 
-            output = model(story, highlight)
+            output = model(story, highlight, story_extended, extra_zeros)
             for predicted, target in zip(output, highlight):
                 batch_loss_eval += criterion(predicted, target).item()
                 batch_acc_eval += (target == predicted.argmax(dim=1)).sum().item() / MAX_LEN_HIGHLIGHT
@@ -36,15 +41,17 @@ def eval(test_iter, model, criterion):
 def get_batch_prediction(output, target, vocab=voc):
     clean_output, clean_target = [],[]
     for pred, target in zip(output, target):
-        # print("\n\nPREDICTION: {}".format(get_sentence_prediction(pred)))
         target = vocab.ids_to_sequence(target.tolist())
         try:
-            target = target[:target.index("[STOP]")]
+            target = target[:target.index(STOP_TOKEN)]
             clean_output.append(get_sentence_prediction(pred))
             clean_target.append(" ".join(target))
         except ValueError:
-            pass
-        # print("TARGET: {}".format(" ".join(target)))
+            target = target[:min(len(target), MAX_LEN_HIGHLIGHT)]
+            clean_output.append(get_sentence_prediction(pred))
+            clean_target.append(" ".join(target))
+        print("TARGET SEQUENCE: {} \n".format(clean_target[-1]))
+        print("PREDICTED SEQUENCE: {} \n".format(clean_output[-1]))
     return clean_output, clean_target
 
 def get_sentence_prediction(sentence):

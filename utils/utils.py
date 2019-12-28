@@ -56,30 +56,27 @@ def get_rouge_score(system_dir='predicted_summaries', model_dir='targeted_summar
 def get_rouge_files(model, data_iter, system_dir='predicted_summaries', model_dir='targeted_summaries'):
     counter = 1
     vocab = Vocab('data/vocab', voc_size)
-    torch.no_grad()
+    with torch.no_grad():
+        bar = Bar("Processing ", max=len(data_iter))
+        for i, batch in enumerate(data_iter):
+            story, highlight = batch
 
-    bar = Bar("Processing ", max=len(data_iter))
-    for i, batch in enumerate(data_iter):
-        story, highlight = batch
+            batcher = Batcher(story, highlight, vocab)
+            story, highlight, extra_zeros, story_extended, highlight_extended, vocab_extended = batcher.get_batch(
+                get_vocab_extended=True)
 
-        batcher = Batcher(story, highlight, vocab)
-        story, highlight, extra_zeros, story_extended, highlight_extended, vocab_extended = batcher.get_batch(
-            get_vocab_extended=True)
+            prediction = model(story.to(device), highlight.to(device), story_extended, extra_zeros)
+            clean_outputs, clean_targets = get_batch_prediction(prediction, highlight, vocab_extended)
 
-        prediction = model(story.to(device), highlight.to(device), story_extended, extra_zeros)
-        clean_outputs, clean_targets = get_batch_prediction(prediction, highlight, vocab_extended)
+            for output, target in zip(clean_outputs, clean_targets):
+                try:
+                    with open(os.path.join(system_dir, "summary.{}.txt".format(counter)), 'w+') as f:
+                        f.write(output)
 
-        for output, target in zip(clean_outputs, clean_targets):
-            highlight_for_rouge = target.split(".")
-            try:
-                with open(os.path.join(system_dir, "summary.{}.txt".format(counter)), 'w+') as f:
-                    f.write(output)
-
-                for i in range(len(highlight_for_rouge)):
-                    with open(os.path.join(model_dir, "summary.{}.{}.txt".format(list_chars[i], counter)), 'w+') as f:
+                    with open(os.path.join(model_dir, "summary.A.{}.txt".format(counter)), 'w+') as f:
                         f.write(target)
-                counter += 1
-            except Exception as e:
-                print("ERROR: {} in file {}".format(str(e), counter))
-        bar.next()
-    bar.finish()
+                    counter += 1
+                except Exception as e:
+                    print("ERROR: {} in file {}".format(str(e), counter))
+            bar.next()
+        bar.finish()

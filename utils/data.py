@@ -34,7 +34,6 @@ class Articles(torch.utils.data.Dataset):
         '''generates one sample of data'''
         X, y = self.data[idx]['story'], self.data[idx]['highlights']
         X_tokenized, y_tokenized = list(map(lambda x: self.tokenize(x), [X, y]))
-        # X_tokenized, y_tokenized = list(map(lambda x: self.words_to_index(x), [X_tokenized, y_tokenized]))
         X_padded = self.padding(X_tokenized)
         y_padded = self.padding(y_tokenized, sequence_type="highlight")
         return X_padded, y_padded
@@ -80,4 +79,16 @@ class Batcher:
         highlight_extended = self.vocab_extended.batch_tokens_to_id(self.highlight)
         vocab_extended = self.vocab_extended if get_vocab_extended else None
         return story, highlight, extra_zero, story_extended, highlight_extended, vocab_extended
+
+    def get_target_for_rouge(self, story):
+        stories = []
+        temp_story = []
+        for token in story:
+            if token != SENTENCE_END:
+                temp_story.append(token)
+            else:
+                stories.append(temp_story)
+                temp_story.clear()
+        stories.append(temp_story)
+        return stories
 
