@@ -1,13 +1,14 @@
 import torch
 import argparse
 from torch.utils.data import DataLoader
-from model import Encoder, Decoder, Seq2seq, Seq2seqAttention, AttnDecoder
+from model import Encoder, Decoder, PointerGenerator, AttnDecoder
 from utils.data import Articles, Batcher
 from utils.utils import load_ckp, get_random_sentences, get_rouge_files, get_rouge_score
 from train import train
 from eval import eval, get_batch_prediction
 from vars import *
 from utils.vocab import Vocab
+
 
 def parse_args():
     parser = argparse.ArgumentParser()
@@ -27,7 +28,7 @@ def run(do_train, do_eval, do_predict, ckpt, get_rouge, max_epochs=100):
 
     encoder = Encoder()
     attention_decoder = AttnDecoder()
-    model = Seq2seqAttention(encoder, attention_decoder)
+    model = PointerGenerator(encoder, attention_decoder)
     model.to(device)
     optimizer = torch.optim.Adagrad(model.parameters(), lr=lr)
     loss_function = torch.nn.NLLLoss()
@@ -41,20 +42,19 @@ def run(do_train, do_eval, do_predict, ckpt, get_rouge, max_epochs=100):
             batch = iter(train_loader).next()
             story, highlight = batch
             batcher = Batcher(story, highlight, vocab)
-
             stories, highlights, extra_zeros, story_extended, highlight_extended, vocab_extended = batcher.get_batch(
-            get_vocab_extended=True)
+                get_vocab_extended=True)
 
             stories = stories.to(device)
             highlights = highlights.to(device)
             story_extended = story_extended.to(device)
-            highlight_extended = highlight_extended.to(device)
             extra_zeros = extra_zeros.to(device)
 
-            #stories, highlights = get_random_sentences(test_set, batch_size)
+            # stories, highlights = get_random_sentences(test_set, batch_size)
             with torch.no_grad():
                 output = model(stories, highlights, story_extended, extra_zeros)
-            get_batch_prediction(output, highlights)
+
+            get_batch_prediction(stories, output, highlights)
     if get_rouge:
         get_rouge_files(model, test_loader)
         get_rouge_score()
@@ -63,9 +63,7 @@ def run(do_train, do_eval, do_predict, ckpt, get_rouge, max_epochs=100):
         epoch = 0
 
     if do_train:
-        train(train_loader, test_loader, loss_function, model, optimizer, epoch, num_epochs=max_epochs-epoch)
-
-
+        train(train_loader, test_loader, loss_function, model, optimizer, epoch, num_epochs=max_epochs - epoch)
 
 
 if __name__ == "__main__":

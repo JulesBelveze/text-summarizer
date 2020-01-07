@@ -120,44 +120,9 @@ class AttnDecoder(nn.Module):
         return torch.log(output), (decoder_hidden, cell)
 
 
-class Seq2seq(nn.Module):
+class PointerGenerator(nn.Module):
     def __init__(self, encoder, decoder):
-        super(Seq2seq, self).__init__()
-        self.encoder = encoder
-        self.decoder = decoder
-
-    def forward(self, input, target):
-        null_state_encoder = self.encoder.init_hidden()
-        encoder_output, (encoder_hidden, encoder_cell) = self.encoder(input, null_state_encoder)
-        decoder_input = torch.tensor([2] * batch_size,
-                                     dtype=torch.long, device=device)
-
-        encoder_l, encoder_r = encoder_hidden[0], encoder_hidden[1]
-        encoder_hidden = torch.cat((encoder_l, encoder_r), 1).unsqueeze(0)
-
-        cell_l, cell_r = encoder_cell[0], encoder_cell[1]
-        encoder_cell = torch.cat((cell_l, cell_r), 1).unsqueeze(0)
-
-        decoder_hidden = encoder_hidden
-        decoder_cell = encoder_cell
-
-        batch_output = torch.Tensor().to(device)
-        for i in range(MAX_LEN_HIGHLIGHT):
-            decoder_output, (decoder_hidden, decoder_cell) = self.decoder(decoder_input, decoder_hidden, decoder_cell)
-            batch_output = torch.cat((batch_output, decoder_output.unsqueeze(1)), 1)
-
-            # using teacher forcing
-            if random.uniform(0, 1) > .5:
-                decoder_input = target[:, i]
-            else:
-                decoder_input = decoder_output.argmax(dim=1)
-
-        return batch_output
-
-
-class Seq2seqAttention(nn.Module):
-    def __init__(self, encoder, decoder):
-        super(Seq2seqAttention, self).__init__()
+        super(PointerGenerator, self).__init__()
         self.encoder = encoder
         self.decoder = decoder
 
@@ -185,7 +150,7 @@ class Seq2seqAttention(nn.Module):
             batch_output = torch.cat((batch_output, decoder_output.unsqueeze(1)), 1)
 
             # using teacher forcing
-            if random.uniform(0, 1) > -1 and self.training:
+            if random.uniform(0, 1) > .5 and self.training:
                 decoder_input = target[:, i]
             else:
                 decoder_input = decoder_output.argmax(dim=1)

@@ -38,20 +38,26 @@ def eval(test_iter, model, criterion):
         print("Acc: {}".format(epoch_acc_eval))
 
 
-def get_batch_prediction(output, target, vocab=voc):
-    clean_output, clean_target = [],[]
-    for pred, target in zip(output, target):
+def get_batch_prediction(stories, output, target, vocab=voc):
+    clean_output, clean_target, clean_stories = [],[], []
+    for pred, target, story in zip(output, target, stories):
         target = vocab.ids_to_sequence(target.tolist())
+        story = vocab.ids_to_sequence(story.tolist())
         try:
             target = target[:target.index(STOP_TOKEN)]
             clean_output.append(get_sentence_prediction(pred))
             clean_target.append(" ".join(target))
+            clean_stories.append(" ".join(story))
         except ValueError:
             target = target[:min(len(target), MAX_LEN_HIGHLIGHT)]
             clean_output.append(get_sentence_prediction(pred))
             clean_target.append(" ".join(target))
-        print("TARGET SEQUENCE: {} \n".format(clean_target[-1]))
-        print("PREDICTED SEQUENCE: {} \n".format(clean_output[-1]))
+            clean_stories.append(" ".join(story))
+
+    # print the first input and its corresponding output
+    print("STORIES: {} \n".format(clean_stories[0]))
+    print("TARGET SEQUENCE: {} \n".format(clean_target[0]))
+    print("PREDICTED SEQUENCE: {} \n".format(clean_output[0]))
     return clean_output, clean_target
 
 def get_sentence_prediction(sentence):
